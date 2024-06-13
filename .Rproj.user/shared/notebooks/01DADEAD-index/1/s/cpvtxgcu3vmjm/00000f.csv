@@ -1,0 +1,6 @@
+"0","#| label: carga_datos_redvial"
+"0","#| message: false"
+"0","#| warning: false"
+"0",""
+"0","red_vial <-"
+"0","  st_read(""redvial.geojson"", quiet = TRUE)"

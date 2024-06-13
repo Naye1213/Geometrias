@@ -1,0 +1,302 @@
+---
+title: "Introducción al manejo de datos espaciales en R"
+author: "Nayely Araya Valerin"
+format: html
+toc: true
+lang: es
+theme: yeti
+---
+
+# Instalar paquetes
+
+Instalación de sf
+install.packages("sf")
+
+Instalación de leaflet
+install.packages("leaflet")
+
+Instalación de leaflet.extras (funciones adicionales de leaflet)
+install.packages("leaflet.extras")
+
+Instalación de leaflem (funciones adicionales de leaflet)
+install.packages("leafem")
+
+Instalación de terra
+install.packages("terra")
+
+# Carga de paquetes
+
+```{r}
+#| label: carga_paquetes
+#| message: false
+#| warning: false
+
+library(sf)
+library(leaflet)
+library(leaflet.extras)
+library(leafem)
+library(terra)
+```
+
+# Carga de datos
+
+```{r}
+#| label: carga_datos
+#| message: false
+#| warning: false
+
+provincias <- 
+  st_read("provincias.geojson", quiet = TRUE)
+
+felidos <-
+  st_read(
+    "felidos.csv",
+    quiet = TRUE,
+    options = c(
+      "X_POSSIBLE_NAMES=decimalLongitude", 
+      "Y_POSSIBLE_NAMES=decimalLatitude"))
+
+# Carga-datos-raster
+
+altitud <-
+  rast("altitud.tif")
+```
+
+# Sistemas de coordenadas
+
+```{r}
+#| label: crs-1
+#| message: false
+#| warning: false
+
+# Asignación del CRS WGS84 (EPSG 4326) al objeto felidos
+
+st_crs(felidos) <- 4326
+```
+
+```{r}
+#| label: crs-2
+#| message: false
+#| warning: false
+
+# Transformación del CRS de provincias a WGS84 (EPSG 4326)
+
+provincias <-
+  provincias |>
+  st_transform(4326)
+```
+
+# Mapeo
+
+```{r}
+#| label: mapeo-vectoriales-1
+#| message: false
+#| warning: false
+
+plot(
+  provincias$geometry,
+  extent = st_bbox(c(xmin = -86.0, xmax = -82.3, ymin = 8.0, ymax = 11.3)),
+  main = "Provincias de Costa Rica",
+  axes = TRUE,
+  graticule = TRUE
+)
+```
+
+```{r}
+#| label: mapeo-vectoriales-2
+#| message: false
+#| warning: false
+
+# Primera capa del mapa
+plot(
+  provincias$geometry,
+  extent = st_bbox(c(xmin = -86.0, xmax = -82.3, ymin = 8.0, ymax = 11.3)),
+  main = "Registros de presencia de félidos en Costa Rica",
+  axes = TRUE,
+  graticule = TRUE,
+  reset = FALSE
+)
+
+# Segunda capa
+plot(felidos$geometry,
+     add = TRUE,     
+     pch = 16,
+     col = "blue")
+```
+
+# Escritura
+
+```{r}
+#| label: st_write
+#| message: false
+#| warning: false
+
+
+provincias |>
+  st_write("provincias.gpkg", delete_dsn = TRUE, quiet = TRUE)
+
+```
+
+# Mapa leaflet
+
+```{r}
+#| label: mapa-leaflet1
+#| message: false
+#| warning: false
+
+leaflet() |>
+  setView(
+    lng = -84,
+    lat = 10,
+    zoom = 7) |>
+  addTiles(group = "OMS") |>
+  addProviderTiles(providers$Esri.NatGeoWorldMap, group = "National Geographic") |>
+  addProviderTiles(providers$Esri.WorldImagery, group = "Imágenes satelitales (ESRI World Imagery)") |>
+  addPolygons(
+    data = provincias,
+    color = "red",
+    fillColor = "transparent",
+    stroke = TRUE,
+    weight = 1.0,
+    group = "Provincias") |>
+  addCircleMarkers(
+    data = felidos,
+    stroke = FALSE,
+    radius = 3,
+    fillColor = "turquoise",
+    fillOpacity = 0.8,
+      popup = paste(
+      paste0("<strong>Especie: </strong>", felidos$species),
+      paste0("<strong>Localidad: </strong>", felidos$locality),
+      paste0("<strong>Fecha: </strong>", felidos$eventDate),
+      paste0("<strong>Fuente: </strong>", felidos$institutionCode),
+      paste0("<a href='", felidos$occurrenceID, "'>Más información</a>"),
+      sep = '<br/>'),
+    group = "Félidos") |>
+  addLayersControl(
+    baseGroups = c("OMS", "Imágenes satelitales (ESRI World Imagery)", "National Geographic"),
+    overlayGroups = c("Provincias", "Félidos")) |>
+  addResetMapButton() |>
+  addSearchOSM() |> 
+  addMouseCoordinates() |> 
+  addScaleBar(
+    position = "bottomleft", 
+    options = scaleBarOptions(imperial = FALSE)) |> 
+  addMiniMap(position = "bottomright") |>
+  addFullscreenControl() 
+```
+
+```{r}
+#| label: mapa-leaflet2
+#| message: false
+#| warning: false
+
+colores_altitud <-
+  colorNumeric(terrain.colors(25),
+               values(altitud),
+               na.color = "transparent")
+
+leaflet() |>
+  setView(
+    lng = -84,
+    lat = 10,
+    zoom = 7
+  ) |>
+  addTiles(group = "OMS") |>
+  addProviderTiles(providers$Esri.NatGeoWorldMap, group = "National Geographic") |>
+  addProviderTiles(providers$Esri.WorldImagery, group = "Imágenes satelitales (ESRI World Imagery)"
+  ) |>
+  addRasterImage(
+    altitud,
+    colors = colores_altitud, 
+    opacity = 0.6,
+    group = "Altitud",
+  ) |>
+  addLegend(
+    title = "Altitud",
+    values = values(altitud),
+    pal = colores_altitud,
+    position = "bottomleft",
+    group = "Altitud"
+  ) |>
+  addPolygons(
+    data = provincias,
+    color = "red",
+    fillColor = "transparent",
+    stroke = TRUE,
+    weight = 1.0,
+    group = "Provincias"
+  ) |>
+  addCircleMarkers(
+    data = felidos,
+    stroke = FALSE,
+    radius = 3,
+    fillColor = "turquoise",
+    fillOpacity = 0.8,
+      popup = paste(
+      paste0("<strong>Especie: </strong>", felidos$species),
+      paste0("<strong>Localidad: </strong>", felidos$locality),
+      paste0("<strong>Fecha: </strong>", felidos$eventDate),
+      paste0("<strong>Fuente: </strong>", felidos$institutionCode),
+      paste0("<a href='", felidos$occurrenceID, "'>Más información</a>"),
+      sep = '<br/>'),
+    group = "Félidos"
+  ) |>
+  addLayersControl(
+    baseGroups = c("OMS", "Imágenes satelitales (ESRI World Imagery)", "National Geographic"),
+    overlayGroups = c("Provincias", "Félidos", "Altitud")
+    ) |>
+  addResetMapButton() |>
+  addSearchOSM() |> 
+  addMouseCoordinates() |> 
+  addScaleBar(
+    position = "bottomleft", 
+    options = scaleBarOptions(imperial = FALSE)
+    ) |> 
+  addMiniMap(position = "bottomright"
+             ) |>
+  addFullscreenControl() 
+```
+
+# Graficos raster
+
+```{r}
+#| label: plot-raster1
+
+plot(altitud)
+```
+
+```{r}
+#| label: plot-raster2
+
+# Primera capa del mapa (raster)
+plot(
+  altitud,
+  main = "Registros de presencia de félidos en Costa Rica",
+  axes = TRUE,
+  reset = FALSE
+)
+
+# Segunda capa (vectorial)
+plot(felidos$geometry,
+     add = TRUE,     
+     pch = 16,
+     col = "blue")
+```
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+

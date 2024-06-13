@@ -1,0 +1,6 @@
+"0","#| label: carga_datos_provincias"
+"0","#| message: false"
+"0","#| warning: false"
+"0",""
+"0","provincias <- "
+"0","  st_read(""provincias.geojson"", quiet = TRUE) "

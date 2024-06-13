@@ -1,0 +1,7 @@
+"0","#| label: simplificacion"
+"0","#| message: false"
+"0","#| warning: false"
+"0",""
+"0","provincias_simplificado <-"
+"0","  provincias |>"
+"0","  st_simplify(dTolerance = 5000, preserveTopology = FALSE)"
